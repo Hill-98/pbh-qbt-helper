@@ -1,0 +1,40 @@
+# /etc/systemd/system/pbh-qbt-helper.service
+
+[Unit]
+Before=qbittorrent-nox.service
+After=network.target nftables.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/pbh-qbt-helper
+Restart=on-failure
+RestartSec=5
+
+# config example
+# Environment=HTTP_PORT=8901 QBT_ENDPOINT=http://127.0.0.1:8900 USE_NFTABLES=yes
+
+DynamicUser=yes
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
+LockPersonality=true
+NoNewPrivileges=yes
+
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=yes
+ProtectClock=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=invisible
+ProtectHostname=true
+PrivateTmp=true
+RemoveIPC=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

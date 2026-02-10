@@ -1,0 +1,26 @@
+#!/usr/bin/env nft -f
+
+table inet pbh_qbt_helper {
+  set ipv4_ban_ips { type ipv4_addr; flags interval; auto-merge; }
+  set ipv6_ban_ips { type ipv6_addr; flags interval; auto-merge; }
+  set qbt_services { type cgroupsv2; }
+  chain input { }
+  chain output { }
+}
+
+delete chain inet pbh_qbt_helper input
+delete chain inet pbh_qbt_helper output
+
+table inet pbh_qbt_helper {
+  chain input {
+    type filter hook input priority mangle; policy accept
+    meta l4proto { tcp, udp } th dport %QBT_PROT% ip saddr @ipv4_ban_ips counter drop
+    meta l4proto { tcp, udp } th dport %QBT_PROT% ip6 saddr @ipv6_ban_ips counter drop
+  }
+
+  chain output {
+    type filter hook output priority mangle; policy accept
+    socket cgroupv2 level %QBT_CGROUP_LEVEL% @qbt_services ip daddr @ipv4_ban_ips meta nftrace set 1 drop
+    socket cgroupv2 level %QBT_CGROUP_LEVEL% @qbt_services ip6 daddr @ipv6_ban_ips meta nftrace set 1 drop
+  }
+}
