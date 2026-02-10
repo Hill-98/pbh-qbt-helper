@@ -21,6 +21,7 @@ pbh-qbt-helper 充当一个中间件，PBH 发送请求到 PQH，PQH 只会放�
 3. 复制 service 文件 `misc/pbh-qbt-helper.service` 到 `/etc/systemd/system/pbh-qbt-helper.service`
 4. 编辑 service 文件并添加配置项环境变量（见下文）。
 5. 启动 `pbh-qbt-helper.service`
+6. 修改 PBH 的下载器配置，将地址指向 PQH 的地址。
 
 ## 配置项
 

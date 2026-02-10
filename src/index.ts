@@ -117,7 +117,6 @@ const serve = Bun.serve({
       // 全量封禁
       if ('banned_IPs' in json && config.useNftables) {
         const ips = json.banned_IPs.split('\n')
-        console.log('add ips (full)')
         await cleanBanIps()
         await addBanIps(ips)
         return new Response(null, { status: 204 })
@@ -128,7 +127,6 @@ const serve = Bun.serve({
     if (url.pathname.endsWith('/transfer/banPeers') && config.useNftables) {
       body = await req.formData()
       const ips = ((body.get('peers') as string) ?? '').split('|').map((peer) => getPeerIp(peer))
-      console.log('add ips')
       await addBanIps(ips)
       return new Response(null, { status: 200 })
     }
