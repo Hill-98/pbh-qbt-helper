@@ -1,3 +1,5 @@
+import { isIP } from 'node:net'
+
 export interface IPSet {
   ipv4: Set<string>
   ipv6: Set<string>
@@ -14,9 +16,10 @@ export function makeIpSet(ips: string[]): IPSet {
     if (ip.startsWith('0:0:0:0:0:') || ip.includes('::ffff:') || ip.trim() === '') {
       continue
     }
-    if (ip.includes('.')) {
+    const ipType = isIP(ip)
+    if (ipType === 4) {
       set.ipv4.add(ip)
-    } else {
+    } else if (ipType === 6) {
       set.ipv6.add(ip)
     }
   }

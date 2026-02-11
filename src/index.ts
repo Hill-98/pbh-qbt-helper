@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { BlockList } from 'node:net'
+import { BlockList, isIPv4 } from 'node:net'
 import { $ } from 'bun'
 import config from './config.ts'
 import nftScript from './pbh-qbt-helper.nft.txt'
@@ -108,7 +108,7 @@ async function handleSyncTorrentPeers(res: Response): Promise<Response | null> {
   const body = await res.json()
   for (const key of Object.keys(body.peers)) {
     const ip = getPeerIp(key)
-    if (state.banIps.check(ip, ip.includes(':') ? 'ipv6' : 'ipv4')) {
+    if (state.banIps.check(ip, isIPv4(ip) ? 'ipv4' : 'ipv6')) {
       Reflect.deleteProperty(body.peers, key)
     }
   }
