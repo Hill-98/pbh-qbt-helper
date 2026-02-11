@@ -44,7 +44,7 @@ pbh-qbt-helper 充当一个中间件，PeerBanHelper 发送请求到 pbh-qbt-hel
 
 如果要使用 nftables，请将 `USE_NFTABLES` 设置为 `yes`，同时将 `QBT_PEER_PORT` 设置为 qBittorrent 的入站端口。
 
-还需要将 qBittorrent 的 cgroup v2 标识符添加到特定的 nftables set，你可以执行 `systemctl edit pbh-qbt-helper.service` 追加以下配置项让 systemd 自动添加。
+还需要将 qBittorrent 的 cgroup v2 标识符添加到特定的 nftables set，你可以执行 `systemctl edit qbittorrent-nox.service` 追加以下配置项让 systemd 自动添加。
 
 ```ini
 # 仅支持系统级服务，不支持用户级服务。
