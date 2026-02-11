@@ -6,6 +6,11 @@ import config from './config.ts'
 import nftScript from './pbh-qbt-helper.nft.txt'
 import { getPeerIp } from './utils.ts'
 
+interface IPSet {
+  ipv4: Set<string>
+  ipv6: Set<string>
+}
+
 const ALLOW_METHODS = ['GET', 'HEAD', 'POST']
 const ALLOW_POST_PATHS = [
   '/api/v2/auth/login',
@@ -31,45 +36,30 @@ const state = {
   banIps: new BlockList(),
 }
 
-async function addBanIps(ips: string[]): Promise<void> {
-  const ipv4 = []
-  const ipv6 = []
-  for (const ip of ips) {
-    if (ip.startsWith('0:0:0:0') || ip.startsWith('::') || ip.trim() === '') {
-      continue
-    }
-    try {
-      if (ip.includes(':')) {
-        state.banIps.addAddress(ip, 'ipv6')
-        ipv6.push(ip)
-      } else {
-        state.banIps.addAddress(ip, 'ipv4')
-        ipv4.push(ip)
+async function addBanIps(ipSet: IPSet): Promise<void> {
+  const nfSets: Record<string, string[]> = {
+    ipv4_ban_ips: [],
+    ipv6_ban_ips: [],
+  }
+  ipSet.ipv4.forEach((ip) => {
+    nfSets.ipv4_ban_ips.push(ip)
+    state.banIps.addAddress(ip, 'ipv4')
+  })
+  ipSet.ipv6.forEach((ip) => {
+    nfSets.ipv6_ban_ips.push(ip)
+    state.banIps.addAddress(ip, 'ipv6')
+  })
+  for (const set of Object.keys(nfSets)) {
+    const buffer = Buffer.from(
+      nfSets[set].map((ip) => `add element inet pbh_qbt_helper ${set} { ${ip} }`).join('\n'),
+      'utf-8',
+    )
+    if (buffer.length !== 0) {
+      try {
+        await $`nft -f - < ${buffer}`
+      } catch (err) {
+        console.error(`add ips to '${set}':`, err)
       }
-    } catch (err) {
-      console.error(`add ip '${ip}':`, err)
-    }
-  }
-  if (ipv4.length !== 0) {
-    const buffer = Buffer.from(
-      ipv4.map((ip) => `add element inet pbh_qbt_helper ipv4_ban_ips { ${ip} }`).join('\n'),
-      'utf-8',
-    )
-    try {
-      await $`nft -f - < ${buffer}`
-    } catch (err) {
-      console.error(err)
-    }
-  }
-  if (ipv6.length !== 0) {
-    const buffer = Buffer.from(
-      ipv6.map((ip) => `add element inet pbh_qbt_helper ipv6_ban_ips { ${ip} }`).join('\n'),
-      'utf-8',
-    )
-    try {
-      await $`nft -f - < ${buffer}`
-    } catch (e) {
-      console.error(e)
     }
   }
 }
@@ -80,14 +70,87 @@ async function cleanBanIps(): Promise<void> {
   state.banIps = new BlockList()
 }
 
+function makeIpSet(ips: string[]): IPSet {
+  const set: IPSet = { ipv4: new Set(), ipv6: new Set() }
+  for (const ip of ips) {
+    if (ip.startsWith('0:0:0:0:0:') || ip.includes('::ffff:') || ip.trim() === '') {
+      continue
+    }
+    if (ip.includes('.')) {
+      set.ipv4.add(ip)
+    } else {
+      set.ipv6.add(ip)
+    }
+  }
+  return set
+}
+
+async function handleBanPeers(req: Request): Promise<Response | null> {
+  if (!config.useNftables) {
+    return null
+  }
+  const body = await req.formData()
+  const ips = (body.get('peers') as string).split('|').map((peer) => getPeerIp(peer))
+  await addBanIps(makeIpSet(ips))
+  return new Response(null, { status: 204 })
+}
+
+async function handleSetPreferences(req: Request): Promise<Response | null> {
+  const body = await req.formData()
+  if (!body.has('json')) {
+    console.error('setPreferences: disable for no json')
+    return new Response(null, { status: 400 })
+  }
+  const json = JSON.parse(body.get('json') as string)
+  // 只允许修改白名单里的项目
+  for (const key of Object.keys(json)) {
+    if (!ALLOW_SET_PREFERENCES_KEYS.includes(key)) {
+      console.error(`setPreferences: disable for key '${key}'`)
+      return new Response(null, { status: 403 })
+    }
+  }
+  // 全量封禁
+  if ('banned_IPs' in json && config.useNftables) {
+    const ipSet = makeIpSet((json.banned_IPs as string).split('\n'))
+    console.warn('add ips with full')
+    await cleanBanIps()
+    await addBanIps(ipSet)
+    return new Response(null, { status: 204 })
+  }
+  return null
+}
+
+async function handleSyncTorrentPeers(res: Response): Promise<Response | null> {
+  if (!config.useNftables || !res.ok) {
+    return null
+  }
+  const body = await res.json()
+  for (const key of Object.keys(body.peers)) {
+    const ip = getPeerIp(key)
+    if (state.banIps.check(ip, ip.includes(':') ? 'ipv6' : 'ipv4')) {
+      Reflect.deleteProperty(body.peers, key)
+    }
+  }
+  res.headers.delete('content-length')
+  return Response.json(body, { headers: res.headers, status: 200 })
+}
+
+const preHandlers: Record<string, (req: Request) => Promise<Response | null>> = {
+  'POST:/api/v2/app/setPreferences': handleSetPreferences,
+  'POST:/api/v2/transfer/banPeers': handleBanPeers,
+}
+
+const postHandlers: Record<string, (res: Response) => Promise<Response | null>> = {
+  'GET:/api/v2/sync/torrentPeers': handleSyncTorrentPeers,
+}
+
 const serve = Bun.serve({
   hostname: '0.0.0.0',
   port: config.httpPort,
-  async fetch(req) {
-    let body: any = null
-    const url = new URL(req.url)
-    const headers = new Headers(req.headers)
-    const method = req.method.toUpperCase()
+  async fetch(request) {
+    const method = request.method.toUpperCase()
+    const url = new URL(request.url)
+    const handlerName = `${method}:${url.pathname}`
 
     if (!ALLOW_METHODS.includes(method)) {
       console.error(`${method} ${url.pathname}: disabled`)
@@ -99,71 +162,46 @@ const serve = Bun.serve({
       return new Response(null, { status: 403 })
     }
 
-    // 修改 qbt 设置项
-    if (url.pathname.endsWith('/app/setPreferences')) {
-      body = await req.formData()
-      if (!body.has('json')) {
-        console.error('setPreferences: disable for no json')
-        return new Response(null, { status: 400 })
-      }
-      const json = JSON.parse(body.get('json') as string)
-      // 只允许修改白名单里的项目
-      for (const key of Object.keys(json)) {
-        if (!ALLOW_SET_PREFERENCES_KEYS.includes(key)) {
-          console.error(`setPreferences: disable for key '${key}'`)
-          return new Response(null, { status: 403 })
+    if (handlerName in preHandlers) {
+      try {
+        const res = await preHandlers[handlerName](request.clone())
+        if (res !== null) {
+          return res
         }
-      }
-      // 全量封禁
-      if ('banned_IPs' in json && config.useNftables) {
-        const ips = json.banned_IPs.split('\n')
-        await cleanBanIps()
-        await addBanIps(ips)
-        return new Response(null, { status: 204 })
+      } catch (err) {
+        console.error(err)
+        return new Response(null, { status: 500 })
       }
     }
 
-    // 增量封禁
-    if (url.pathname.endsWith('/transfer/banPeers') && config.useNftables) {
-      body = await req.formData()
-      const ips = ((body.get('peers') as string) ?? '').split('|').map((peer) => getPeerIp(peer))
-      await addBanIps(ips)
-      return new Response(null, { status: 200 })
-    }
-
-    headers.set('host', config.qbtEndpoint.host)
-    headers.set('referer', config.qbtEndpoint.origin)
-    if (req.bodyUsed) {
-      headers.delete('content-length')
-      headers.delete('content-type')
-    }
-    const res = await Bun.fetch(config.qbtEndpoint.origin + url.pathname + url.search, {
-      body: req.bodyUsed ? body : req.body,
-      headers,
+    const proxyHeaders = new Headers(request.headers.toJSON())
+    proxyHeaders.delete('accept-encoding')
+    proxyHeaders.set('host', config.qbtEndpoint.host)
+    proxyHeaders.set('origin', config.qbtEndpoint.origin)
+    proxyHeaders.set('referer', config.qbtEndpoint.origin.concat('/'))
+    const response = await Bun.fetch(config.qbtEndpoint.origin + url.pathname + url.search, {
+      body: await request.bytes(),
+      decompress: false,
+      headers: proxyHeaders,
       keepalive: true,
       method,
       signal: AbortSignal.timeout(10000),
     })
-    const resHeaders = new Headers()
-    resHeaders.set('content-type', res.headers.get('content-type') ?? '')
-    resHeaders.set('x-content-type-options', 'nosniff')
-    resHeaders.set('x-frame-options', 'SAMEORIGIN')
-    resHeaders.set('x-xss-protection', '1; mode=block')
 
-    // PBH 获取 peers 时过滤掉已封禁的 IP，防止触发全量封禁。
-    if (url.pathname.endsWith('/sync/torrentPeers') && method === 'GET' && config.useNftables) {
-      const body = await res.json()
-      for (const key of Object.keys(body.peers)) {
-        const ip = getPeerIp(key)
-        if (state.banIps.check(ip, ip.includes(':') ? 'ipv6' : 'ipv4')) {
-          Reflect.deleteProperty(body.peers, key)
+    if (handlerName in postHandlers) {
+      try {
+        const res = await postHandlers[handlerName](response.clone())
+        if (res !== null) {
+          return res
         }
+      } catch (err) {
+        console.error(err)
       }
-      return new Response(JSON.stringify(body), { headers: resHeaders, status: res.status })
     }
-    return new Response(res.body, {
-      headers: resHeaders,
-      status: res.status,
+
+    return new Response(response.body, {
+      headers: response.headers,
+      status: response.status,
     })
   },
 })
