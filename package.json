@@ -6,6 +6,7 @@
   "main": "src/index.ts",
   "scripts": {
     "build": "bun build src/index.ts --outfile=dist/pbh-qbt-helper",
+    "build-bin": "bun build src/index.ts --compile --outfile=dist/pbh-qbt-helper",
     "check": "biome check && tsc --noEmit",
     "start": "bun ."
   },
