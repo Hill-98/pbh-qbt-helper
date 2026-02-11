@@ -4,12 +4,8 @@ import { BlockList } from 'node:net'
 import { $ } from 'bun'
 import config from './config.ts'
 import nftScript from './pbh-qbt-helper.nft.txt'
-import { getPeerIp } from './utils.ts'
-
-interface IPSet {
-  ipv4: Set<string>
-  ipv6: Set<string>
-}
+import type { IPSet } from './utils.ts'
+import { getPeerIp, makeIpSet } from './utils.ts'
 
 const ALLOW_METHODS = ['GET', 'HEAD', 'POST']
 const ALLOW_POST_PATHS = [
@@ -68,21 +64,6 @@ async function cleanBanIps(): Promise<void> {
   await $`nft flush set inet pbh_qbt_helper ipv4_ban_ips`
   await $`nft flush set inet pbh_qbt_helper ipv6_ban_ips`
   state.banIps = new BlockList()
-}
-
-function makeIpSet(ips: string[]): IPSet {
-  const set: IPSet = { ipv4: new Set(), ipv6: new Set() }
-  for (const ip of ips) {
-    if (ip.startsWith('0:0:0:0:0:') || ip.includes('::ffff:') || ip.trim() === '') {
-      continue
-    }
-    if (ip.includes('.')) {
-      set.ipv4.add(ip)
-    } else {
-      set.ipv6.add(ip)
-    }
-  }
-  return set
 }
 
 async function handleBanPeers(req: Request): Promise<Response | null> {
