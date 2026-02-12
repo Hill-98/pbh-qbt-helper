@@ -8,6 +8,8 @@ table inet pbh_qbt_helper {
   chain output { }
 }
 
+flush set inet pbh_qbt_helper ipv4_ban_ips
+flush set inet pbh_qbt_helper ipv6_ban_ips
 delete chain inet pbh_qbt_helper input
 delete chain inet pbh_qbt_helper output
 
