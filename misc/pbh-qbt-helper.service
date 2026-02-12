@@ -36,5 +36,7 @@ RestrictSUIDSGID=true
 RestrictRealtime=true
 SystemCallArchitectures=native
 
+MemoryMax=256M
+
 [Install]
 WantedBy=multi-user.target
