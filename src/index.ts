@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 
 import { BlockList, isIPv4 } from 'node:net'
-import { $ } from 'bun'
 import config from './config.ts'
 import nftScript from './pbh-qbt-helper.nft.txt'
 import type { IPSet } from './utils.ts'
@@ -33,29 +32,26 @@ const state = {
 }
 
 async function addBanIps(ipSet: IPSet): Promise<void> {
-  const nfSets: Record<string, string[]> = {
-    ipv4_ban_ips: [],
-    ipv6_ban_ips: [],
+  if (ipSet.ipv4.size !== 0) {
+    const ips = Array.from(ipSet.ipv4)
+    for (const ip of ips) {
+      state.banIps.addAddress(ip, 'ipv4')
+    }
+    try {
+      await execNftScript(`add element inet pbh_qbt_helper ipv4_ban_ips { ${ips.join(',')} }`)
+    } catch (err) {
+      console.error(`add ips to 'ipv4_ban_ips' set:`, err)
+    }
   }
-  ipSet.ipv4.forEach((ip) => {
-    nfSets.ipv4_ban_ips.push(ip)
-    state.banIps.addAddress(ip, 'ipv4')
-  })
-  ipSet.ipv6.forEach((ip) => {
-    nfSets.ipv6_ban_ips.push(ip)
-    state.banIps.addAddress(ip, 'ipv6')
-  })
-  for (const set of Object.keys(nfSets)) {
-    const buffer = Buffer.from(
-      nfSets[set].map((ip) => `add element inet pbh_qbt_helper ${set} { ${ip} }`).join('\n'),
-      'utf-8',
-    )
-    if (buffer.length !== 0) {
-      try {
-        await $`nft -f - < ${buffer}`
-      } catch (err) {
-        console.error(`add ips to '${set}':`, err)
-      }
+  if (ipSet.ipv6.size !== 0) {
+    const ips = Array.from(ipSet.ipv6)
+    for (const ip of ips) {
+      state.banIps.addAddress(ip, 'ipv6')
+    }
+    try {
+      await execNftScript(`add element inet pbh_qbt_helper ipv6_ban_ips { ${Array.from(ipSet.ipv6).join(',')} }`)
+    } catch (err) {
+      console.error(`add ips to 'ipv6_ban_ips' set:`, err)
     }
   }
 }
