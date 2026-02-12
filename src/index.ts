@@ -162,7 +162,6 @@ const serve = Bun.serve({
     proxyHeaders.set('Host', config.qbtEndpoint.host)
     proxyHeaders.set('Origin', config.qbtEndpoint.origin)
     proxyHeaders.set('Referer', config.qbtEndpoint.origin.concat('/'))
-    proxyHeaders.set('X-Forwarded-For', serve.requestIP(request)?.address ?? '127.0.0.1')
     const response = await Bun.fetch(config.qbtEndpoint.origin + url.pathname + url.search, {
       body: await request.bytes(),
       decompress: false,
