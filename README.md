@@ -12,6 +12,8 @@ pbh-qbt-helper 充当一个中间件，PeerBanHelper 发送请求到 pbh-qbt-hel
 
 > pbh-qbt-helper 仅能阻止下载器不被滥用，并不能阻止 PeerBanHelper 不被滥用，如果 PeerBanHelper 存在漏洞，则依然有可能被用于 DDoS 攻击或其他攻击手段，建议使用容器运行 PeerBanHelper，并使用防火墙和容器资源限制加强安全性。
 
+> 务必在容器里运行 PeerBanHelper，并且此容器无法直接访问 qBittorrent。如果容器可以直接访问 qBittorrent，那么保护效果会大打折扣。
+
 ## 如何使用？
 
 这个工具使用 JavaScript 运行时 [Bun](https://bun.sh) 编写，可以支持几乎所有操作系统，但这里不会提供所有系统的使用方法。
