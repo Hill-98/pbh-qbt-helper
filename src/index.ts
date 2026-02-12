@@ -190,6 +190,7 @@ const serve = Bun.serve({
         }
       } catch (err) {
         console.error(err)
+        return new Response(null, { status: 500 })
       }
     }
 
