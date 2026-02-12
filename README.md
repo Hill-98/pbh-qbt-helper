@@ -10,7 +10,7 @@ PeerBanHelper 需要访问下载器的 API 才能正常工作。如果 PeerBanHe
 
 pbh-qbt-helper 充当一个中间件，PeerBanHelper 发送请求到 pbh-qbt-helper，pbh-qbt-helper 只会放行处于白名单的请求，拦截非白名单的请求。
 
-> pbh-qbt-helper 仅能阻止下载器不被滥用，并不能阻止 PeerBanHelper 不被滥用，如果 PeerBanHelper 存在漏洞，则依然有可能被用于 DDoS 攻击或其他攻击手段，建议使用容器运行 PeerBanHelper，并使用防火墙和容器资源限制加强安全性。
+> pbh-qbt-helper 仅能阻止下载器不被滥用，并不能阻止 PeerBanHelper 不被滥用，如果 PeerBanHelper 存在漏洞，则依然有可能被用于 DDoS 攻击或其他攻击手段。
 
 > 务必在容器里运行 PeerBanHelper，并且此容器无法直接访问 qBittorrent。如果容器可以直接访问 qBittorrent，那么保护效果会大打折扣。
 
