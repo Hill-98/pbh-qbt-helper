@@ -3,6 +3,7 @@
 import { BlockList, isIPv4 } from 'node:net'
 import config from './config.ts'
 import nftScript from './pbh-qbt-helper.nft.txt'
+import { SimpleTokenBucket } from './SimpleTokenBucket.ts'
 import type { IPSet } from './utils.ts'
 import { execNftScript, getPeerIp, makeIpSet } from './utils.ts'
 
@@ -29,6 +30,7 @@ const ALLOW_SET_PREFERENCES_KEYS = [
 
 const state = {
   banIps: new BlockList(),
+  tb: new SimpleTokenBucket(10, 3, 1),
 }
 
 async function addBanIps(ipSet: IPSet): Promise<void> {
@@ -128,6 +130,7 @@ const serve = Bun.serve({
   port: config.httpPort,
   async fetch(request) {
     const method = request.method.toUpperCase()
+    const isPost = method === 'POST'
     const url = new URL(request.url)
     const handlerName = `${method}:${url.pathname}`
 
@@ -136,9 +139,13 @@ const serve = Bun.serve({
       return new Response(null, { status: 405 })
     }
 
-    if (method === 'POST' && !ALLOW_POST_PATHS.includes(url.pathname)) {
+    if (isPost && !ALLOW_POST_PATHS.includes(url.pathname)) {
       console.error(`${method} ${url.pathname}: disabled`)
       return new Response(null, { status: 403 })
+    }
+
+    if (isPost && !state.tb.tryConsume()) {
+      return new Response(null, { status: 429 })
     }
 
     if (handlerName in preHandlers) {
