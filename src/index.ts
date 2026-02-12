@@ -152,6 +152,7 @@ const serve = Bun.serve({
     }
 
     if (isPost && !state.tb.tryConsume()) {
+      console.warn(`${method} ${url.pathname}: rate limit exceeded`)
       return new Response(null, { status: 429 })
     }
 
