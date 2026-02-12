@@ -144,6 +144,13 @@ const serve = Bun.serve({
       return new Response(null, { status: 403 })
     }
 
+    const cLength = Number.parseInt(request.headers.get('content-length') ?? '0', 10)
+
+    if (cLength > 1024 * 1024 * 10) {
+      console.warn(`${method} ${url.pathname}: request body too big`)
+      return new Response(null, { status: 413 })
+    }
+
     if (isPost && !state.tb.tryConsume()) {
       return new Response(null, { status: 429 })
     }
