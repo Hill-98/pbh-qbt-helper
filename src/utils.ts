@@ -1,8 +1,16 @@
 import { isIP } from 'node:net'
+import { $ } from 'bun'
 
 export interface IPSet {
   ipv4: Set<string>
   ipv6: Set<string>
+}
+
+export async function execNftScript(script: string): Promise<void> {
+  if (script.trim() === '') {
+    return
+  }
+  await $`nft -f - < ${Buffer.from(script, 'utf-8')}`
 }
 
 export function getPeerIp(peer: string): string {

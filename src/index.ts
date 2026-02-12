@@ -5,7 +5,7 @@ import { $ } from 'bun'
 import config from './config.ts'
 import nftScript from './pbh-qbt-helper.nft.txt'
 import type { IPSet } from './utils.ts'
-import { getPeerIp, makeIpSet } from './utils.ts'
+import { execNftScript, getPeerIp, makeIpSet } from './utils.ts'
 
 const ALLOW_METHODS = ['GET', 'HEAD', 'POST']
 const ALLOW_POST_PATHS = [
@@ -61,8 +61,10 @@ async function addBanIps(ipSet: IPSet): Promise<void> {
 }
 
 async function cleanBanIps(): Promise<void> {
-  await $`nft flush set inet pbh_qbt_helper ipv4_ban_ips`
-  await $`nft flush set inet pbh_qbt_helper ipv6_ban_ips`
+  await execNftScript(`
+flush set inet pbh_qbt_helper ipv4_ban_ips
+flush set inet pbh_qbt_helper ipv6_ban_ips
+`)
   state.banIps = new BlockList()
 }
 
@@ -190,13 +192,11 @@ const serve = Bun.serve({
 
 if (config.useNftables) {
   console.warn('importing nftables rules...')
-  const buffer = Buffer.from(
+  await execNftScript(
     (nftScript as string)
       .replaceAll('%QBT_PROT%', config.qbtPeerPort.toString())
       .replaceAll('%QBT_CGROUP_LEVEL%', config.qbtCgroupLevel.toString()),
-    'utf-8',
   )
-  await $`nft -f - < ${buffer}`
 }
 
 console.warn('qbt endpoint:', config.qbtEndpoint.origin)
