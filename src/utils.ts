@@ -35,9 +35,6 @@ export function getPeerIp(peer: string): string {
 export function makeBanIpSet(ips: string[]): BanIPSet {
   const set: BanIPSet = { ipv4: new Set(), ipv6: new Set() }
   for (const ip of ips) {
-    if (ip.trim() === '') {
-      continue
-    }
     const ipType = isIP(ip)
     if (ipType === 4) {
       set.ipv4.add(ip)
