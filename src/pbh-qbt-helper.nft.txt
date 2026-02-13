@@ -16,8 +16,8 @@ delete chain inet pbh_qbt_helper output
 table inet pbh_qbt_helper {
   chain input {
     type filter hook input priority mangle; policy accept
-    meta l4proto { tcp, udp } th dport %QBT_PROT% ip saddr @ipv4_ban_ips counter drop
-    meta l4proto { tcp, udp } th dport %QBT_PROT% ip6 saddr @ipv6_ban_ips counter drop
+    meta l4proto { tcp, udp } th dport %QBT_PROT% ip saddr @ipv4_ban_ips drop
+    meta l4proto { tcp, udp } th dport %QBT_PROT% ip6 saddr @ipv6_ban_ips drop
   }
 
   chain output {
