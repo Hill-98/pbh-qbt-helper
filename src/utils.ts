@@ -35,14 +35,17 @@ export function getPeerIp(peer: string): string {
 export function makeBanIpSet(ips: string[]): BanIPSet {
   const set: BanIPSet = { ipv4: new Set(), ipv6: new Set() }
   for (const ip of ips) {
-    if (ip.startsWith('0:0:0:0:0:') || ip.includes('::ffff:') || ip.trim() === '') {
+    if (ip.trim() === '') {
       continue
     }
     const ipType = isIP(ip)
     if (ipType === 4) {
       set.ipv4.add(ip)
     } else if (ipType === 6) {
-      set.ipv6.add(expandIPv6Address(ip).slice(0, 4).join(':').concat('::/64'))
+      const v6 = expandIPv6Address(ip)
+      if (v6[0] !== '0000') {
+        set.ipv6.add(v6.slice(0, 4).join(':').concat('::/64'))
+      }
     }
   }
   return set
