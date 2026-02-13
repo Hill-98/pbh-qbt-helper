@@ -4,8 +4,8 @@ import { BlockList, isIPv4 } from 'node:net'
 import config from './config.ts'
 import nftScript from './pbh-qbt-helper.nft.txt'
 import { SimpleTokenBucket } from './SimpleTokenBucket.ts'
-import type { IPSet } from './utils.ts'
-import { execNftScript, getPeerIp, makeIpSet } from './utils.ts'
+import type { BanIPSet } from './utils.ts'
+import { execNftScript, getPeerIp, makeBanIpSet } from './utils.ts'
 
 const ALLOW_METHODS = ['GET', 'HEAD', 'POST']
 const ALLOW_POST_PATHS = [
@@ -29,15 +29,21 @@ const ALLOW_SET_PREFERENCES_KEYS = [
 ]
 
 const state = {
-  banIps: new BlockList(),
+  ipv4_ban_list: new BlockList(),
+  ipv6_ban_list: new BlockList(),
   tb: new SimpleTokenBucket(10, 3, 1),
 }
 
-async function addBanIps(ipSet: IPSet): Promise<void> {
+async function addBanIpSet(ipSet: BanIPSet): Promise<void> {
   if (ipSet.ipv4.size !== 0) {
     const ips = Array.from(ipSet.ipv4)
     for (const ip of ips) {
-      state.banIps.addAddress(ip, 'ipv4')
+      const i = ip.indexOf('/')
+      if (i === -1) {
+        state.ipv4_ban_list.addAddress(ip, 'ipv4')
+      } else {
+        state.ipv4_ban_list.addSubnet(ip.substring(0, i), Number.parseInt(ip.substring(i + 1), 10), 'ipv4')
+      }
     }
     try {
       await execNftScript(`add element inet pbh_qbt_helper ipv4_ban_ips { ${ips.join(',')} }`)
@@ -48,7 +54,12 @@ async function addBanIps(ipSet: IPSet): Promise<void> {
   if (ipSet.ipv6.size !== 0) {
     const ips = Array.from(ipSet.ipv6)
     for (const ip of ips) {
-      state.banIps.addAddress(ip, 'ipv6')
+      const i = ip.indexOf('/')
+      if (i === -1) {
+        state.ipv6_ban_list.addAddress(ip, 'ipv6')
+      } else {
+        state.ipv6_ban_list.addSubnet(ip.substring(0, i), Number.parseInt(ip.substring(i + 1), 10), 'ipv6')
+      }
     }
     try {
       await execNftScript(`add element inet pbh_qbt_helper ipv6_ban_ips { ${Array.from(ipSet.ipv6).join(',')} }`)
@@ -63,7 +74,8 @@ async function cleanBanIps(): Promise<void> {
 flush set inet pbh_qbt_helper ipv4_ban_ips
 flush set inet pbh_qbt_helper ipv6_ban_ips
 `)
-  state.banIps = new BlockList()
+  state.ipv4_ban_list = new BlockList()
+  state.ipv6_ban_list = new BlockList()
 }
 
 async function handleBanPeers(req: Request): Promise<Response | null> {
@@ -72,7 +84,7 @@ async function handleBanPeers(req: Request): Promise<Response | null> {
   }
   const body = await req.formData()
   const ips = (body.get('peers') as string).split('|').map((peer) => getPeerIp(peer))
-  await addBanIps(makeIpSet(ips))
+  await addBanIpSet(makeBanIpSet(ips))
   return new Response(null, { status: 204 })
 }
 
@@ -92,10 +104,10 @@ async function handleSetPreferences(req: Request): Promise<Response | null> {
   }
   // 全量封禁
   if ('banned_IPs' in json && config.useNftables) {
-    const ipSet = makeIpSet((json.banned_IPs as string).split('\n'))
+    const ipSet = makeBanIpSet((json.banned_IPs as string).split('\n'))
     console.warn('add ips with full')
     await cleanBanIps()
-    await addBanIps(ipSet)
+    await addBanIpSet(ipSet)
     return new Response(null, { status: 204 })
   }
   return null
@@ -108,7 +120,8 @@ async function handleSyncTorrentPeers(res: Response): Promise<Response | null> {
   const body = await res.json()
   for (const key of Object.keys(body.peers)) {
     const ip = getPeerIp(key)
-    if (state.banIps.check(ip, isIPv4(ip) ? 'ipv4' : 'ipv6')) {
+    const exist = isIPv4(ip) ? state.ipv4_ban_list.check(ip, 'ipv4') : state.ipv6_ban_list.check(ip, 'ipv6')
+    if (exist) {
       Reflect.deleteProperty(body.peers, key)
     }
   }

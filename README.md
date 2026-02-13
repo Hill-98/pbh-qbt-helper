@@ -42,6 +42,8 @@ pbh-qbt-helper 充当一个中间件，PeerBanHelper 发送请求到 pbh-qbt-hel
 
 ## 使用 nftables 封禁 IP
 
+> 如果是 IPv6 地址，pbh-qbt-helper 将自动使用 /64 前缀。
+
 如果你运行 qBittorrent 的操作系统是 Linux，推荐使用 nftables 封禁 IP，可以减轻下载器压力，使用前确保系统上存在 `nft` 命令。
 
 如果要使用 nftables，请将 `USE_NFTABLES` 设置为 `yes`，同时将 `QBT_PEER_PORT` 设置为 qBittorrent 的入站端口。
