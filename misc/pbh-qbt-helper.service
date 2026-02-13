@@ -14,27 +14,33 @@ RestartSec=5
 # Environment=HTTP_PORT=8901 QBT_ENDPOINT=http://127.0.0.1:8900 USE_NFTABLES=yes
 
 DynamicUser=yes
-CapabilityBoundingSet=CAP_NET_ADMIN
+
 AmbientCapabilities=CAP_NET_ADMIN
-LockPersonality=true
+CapabilityBoundingSet=CAP_NET_ADMIN
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
 NoNewPrivileges=yes
 
-PrivateDevices=true
-ProtectSystem=strict
+PrivateBPF=yes
+PrivateTmp=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+PrivateDevices=yes
 ProtectHome=yes
-ProtectClock=true
-ProtectControlGroups=true
-ProtectKernelLogs=true
-ProtectKernelModules=true
-ProtectKernelTunables=true
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
 ProtectProc=invisible
-ProtectHostname=true
-PrivateTmp=true
-RemoveIPC=true
-RestrictNamespaces=true
-RestrictSUIDSGID=true
-RestrictRealtime=true
+ProtectSystem=strict
+
+RemoveIPC=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+
 SystemCallArchitectures=native
+SystemCallFilter=@system-service
 
 MemoryMax=256M
 
