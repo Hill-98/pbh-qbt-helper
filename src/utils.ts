@@ -1,10 +1,4 @@
-import { isIP } from 'node:net'
 import { $ } from 'bun'
-
-export interface BanIPSet {
-  ipv4: Set<string>
-  ipv6: Set<string>
-}
 
 export async function execNftScript(script: string): Promise<void> {
   if (script.trim() === '') {
@@ -30,20 +24,4 @@ export function expandIPv6Address(address: string): string[] {
 export function getPeerIp(peer: string): string {
   const i = peer.indexOf('[')
   return peer.substring(i + 1, peer.indexOf(i === -1 ? ':' : ']'))
-}
-
-export function makeBanIpSet(ips: string[]): BanIPSet {
-  const set: BanIPSet = { ipv4: new Set(), ipv6: new Set() }
-  for (const ip of ips) {
-    const ipType = isIP(ip)
-    if (ipType === 4) {
-      set.ipv4.add(ip)
-    } else if (ipType === 6) {
-      const v6 = expandIPv6Address(ip)
-      if (v6[0] !== '0000') {
-        set.ipv6.add(v6.slice(0, 4).join(':').concat('::/64'))
-      }
-    }
-  }
-  return set
 }
