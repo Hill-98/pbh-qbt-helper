@@ -51,7 +51,7 @@ pbh-qbt-helper 充当一个中间件，PeerBanHelper 发送请求到 pbh-qbt-hel
 还需要将 qBittorrent 的 cgroup v2 标识符添加到特定的 nftables set，你可以执行 `systemctl edit qbittorrent-nox.service` 追加以下配置项让 systemd 自动添加。
 
 ```ini
-# 仅支持系统级服务，不支持用户级服务。
+# 此特性需要 systemd 255 及以上版本
 [Service]
 NFTSet=cgroup:inet:pbh_qbt_helper:qbt_services
 ```
