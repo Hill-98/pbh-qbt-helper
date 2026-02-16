@@ -6,7 +6,6 @@ import nftScript from './pbh-qbt-helper.nft.txt'
 import { SimpleTokenBucket } from './SimpleTokenBucket.ts'
 import { execNftScript, getPeerIp } from './utils.ts'
 
-const ALLOW_METHODS = ['GET', 'HEAD', 'POST']
 const ALLOW_POST_PATHS = [
   '/api/v2/auth/login',
   '/api/v2/app/setPreferences',
@@ -96,7 +95,7 @@ const serve = Bun.serve({
     const url = new URL(request.url)
     const handlerName = `${method}:${url.pathname}`
 
-    if (!ALLOW_METHODS.includes(method)) {
+    if (method !== 'GET' && method !== 'POST') {
       console.error(`${method} ${url.pathname}: disabled`)
       return new Response(null, { status: 405 })
     }
@@ -106,11 +105,12 @@ const serve = Bun.serve({
       return new Response(null, { status: 403 })
     }
 
-    const cLength = Number.parseInt(request.headers.get('content-length') ?? '0', 10)
-
-    if (cLength > 10485760) {
-      console.warn(`${method} ${url.pathname}: request body too big`)
-      return new Response(null, { status: 413 })
+    if (isPost) {
+      const cLength = Number.parseInt(request.headers.get('content-length') ?? '0', 10)
+      if (cLength > 10485760) {
+        console.warn(`${method} ${url.pathname}: request body too big`)
+        return new Response(null, { status: 413 })
+      }
     }
 
     if (isPost && !state.tb.tryConsume()) {
