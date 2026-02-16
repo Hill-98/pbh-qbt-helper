@@ -6,8 +6,10 @@ export type IPVersionMap<T> = Record<IPVersion, T>
 
 export class BanIPManager {
   readonly #blockLists: IPVersionMap<BlockList>
-  readonly #ipSets: IPVersionMap<Set<string>>
+  readonly #ipSets: Readonly<IPVersionMap<Set<string>>>
   readonly #nftNames: Readonly<IPVersionMap<string>>
+
+  #lastAddTime = 0
 
   #operateLock: Promise<any> = Promise.resolve()
 
@@ -19,6 +21,10 @@ export class BanIPManager {
 
   get ipVersions(): IPVersion[] {
     return ['ipv4', 'ipv6']
+  }
+
+  get lastAddTime(): number {
+    return this.#lastAddTime
   }
 
   #addToBlockList(value: string | Set<string>, v: IPVersion): void {
@@ -81,7 +87,10 @@ export class BanIPManager {
       return
     }
     await execNftScript(`add element ${this.#nftNames[v]} { ${str} }`)
-    this.#ipSets[v] = this.#ipSets[v].union(set)
+    for (const ip of set) {
+      this.#ipSets[v].add(ip)
+    }
+    this.#lastAddTime = Date.now()
   }
 
   async #append(ips: string[]): Promise<void> {

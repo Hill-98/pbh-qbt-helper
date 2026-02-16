@@ -65,7 +65,7 @@ async function handleSetPreferences(req: Request): Promise<Response | null> {
 }
 
 async function handleSyncTorrentPeers(res: Response): Promise<Response | null> {
-  if (!config.useNftables || !res.ok) {
+  if (!config.useNftables || !res.ok || state.manager.lastAddTime < Date.now() - 60000) {
     return null
   }
   const body = await res.json()
@@ -108,7 +108,7 @@ const serve = Bun.serve({
 
     const cLength = Number.parseInt(request.headers.get('content-length') ?? '0', 10)
 
-    if (cLength > 1024 * 1024 * 10) {
+    if (cLength > 10485760) {
       console.warn(`${method} ${url.pathname}: request body too big`)
       return new Response(null, { status: 413 })
     }
@@ -130,13 +130,13 @@ const serve = Bun.serve({
       }
     }
 
-    const proxyHeaders = new Headers(request.headers.toJSON())
+    const proxyHeaders = new Headers(request.headers)
     proxyHeaders.delete('accept-encoding')
     proxyHeaders.set('Host', config.qbtEndpoint.host)
     proxyHeaders.set('Origin', config.qbtEndpoint.origin)
-    proxyHeaders.set('Referer', config.qbtEndpoint.origin.concat('/'))
+    proxyHeaders.set('Referer', config.qbtEndpoint.origin)
     const response = await Bun.fetch(config.qbtEndpoint.origin + url.pathname + url.search, {
-      body: await request.bytes(),
+      body: await request.arrayBuffer(),
       decompress: false,
       headers: proxyHeaders,
       keepalive: true,
