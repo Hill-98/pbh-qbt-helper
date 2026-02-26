@@ -44,14 +44,17 @@ export class BanIPManager {
 
   #makeIpSets(ips: string[]): IPVersionMap<Set<string>> {
     const set: IPVersionMap<Set<string>> = { ipv4: new Set(), ipv6: new Set() }
-    for (const ip of ips) {
+    for (const value of ips) {
+      const i = value.indexOf('/')
+      const ip = i === -1 ? value : value.substring(0, i)
+      const mask = i === -1 ? Number.NaN : Number.parseInt(value.substring(i + 1), 10)
       const v = isIP(ip)
       if (v === 4) {
-        set.ipv4.add(ip)
+        set.ipv4.add(Number.isNaN(mask) ? ip : `${ip}/${mask}`)
       } else if (v === 6) {
         const v6 = expandIPv6Address(ip)
         if (v6[0] !== '0000') {
-          set.ipv6.add(v6.slice(0, 4).join(':').concat('::/64'))
+          set.ipv6.add(`${v6.slice(0, 4).join(':')}::/${Number.isNaN(mask) ? 64 : mask}`)
         }
       }
     }
